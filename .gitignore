@@ -1,0 +1,4 @@
+node_modules
+.env
+.DS_Store
+src/data/auth_tokens.json

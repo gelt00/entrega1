@@ -1,0 +1,16 @@
+[
+  {
+    "id": 1,
+    "title": "Teclado mecánico 2",
+    "description": "Switches lineales",
+    "code": "KB-001",
+    "price": 1399.99,
+    "status": true,
+    "stock": 50,
+    "category": "perifericos",
+    "thumbnails": [
+      "img/keyboard12.png",
+      "img/keyboard22.png"
+    ]
+  }
+]
