@@ -48,7 +48,7 @@ export default class CartManager {
   }
 
   async saveCarts(carts) {
-    await this.ensureFile();
+    await this.#ensureFile();
     await fs.writeFile(this.filePath, JSON.stringify(carts, null, 2), "utf-8");
   }
 
