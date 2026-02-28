@@ -1,6 +1,6 @@
 [
   {
-    "id": 1,
+    "id": "1",
     "title": "Teclado mecánico 2",
     "description": "Switches lineales",
     "code": "KB-001",
@@ -11,6 +11,45 @@
     "thumbnails": [
       "img/keyboard12.png",
       "img/keyboard22.png"
+    ]
+  },
+  {
+    "id": "2",
+    "title": "mouse",
+    "description": "ratón",
+    "code": "1",
+    "price": 12,
+    "status": true,
+    "stock": 12,
+    "category": "Perifericos",
+    "thumbnails": [
+      "img/2.jpg"
+    ]
+  },
+  {
+    "id": "3",
+    "title": "webcam",
+    "description": "cámara web",
+    "code": "3",
+    "price": 123,
+    "status": true,
+    "stock": 11,
+    "category": "Perifericos",
+    "thumbnails": [
+      "img/3.jpg"
+    ]
+  },
+  {
+    "id": "4",
+    "title": "teclado",
+    "description": "teclado mecánico 1",
+    "code": "4",
+    "price": 100,
+    "status": true,
+    "stock": 12,
+    "category": "Perifericos",
+    "thumbnails": [
+      "img/4.jpg"
     ]
   }
 ]

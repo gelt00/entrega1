@@ -1,0 +1,26 @@
+<section class="card">
+  <h2 class="title">Lista de productos</h2>
+  <p class="muted">Esta vista se actualiza al recargar la página.</p>
+
+  {{#if products.length}}
+    <ul class="grid" id="productsList">
+      {{#each products}}
+        <li class="product">
+          <div class="row">
+            <strong>{{title}}</strong>
+            <span class="badge">ID: {{id}}</span>
+          </div>
+          <div class="muted">{{description}}</div>
+          <div class="row gap">
+            <span>$ {{price}}</span>
+            <span class="chip">code: {{code}}</span>
+            <span class="chip">stock: {{stock}}</span>
+            <span class="chip">cat: {{category}}</span>
+          </div>
+        </li>
+      {{/each}}
+    </ul>
+  {{else}}
+    <div class="empty">No hay productos aún.</div>
+  {{/if}}
+</section>

@@ -18,19 +18,38 @@ router.get("/:pid", authRequired, async (req, res) => {
 });
 
 router.post("/", authRequired, async (req, res) => {
-  const product = await manager.addProduct(req.body);
-  res.status(201).json(product);
+  try {
+    const product = await manager.addProduct(req.body);
+    const io = req.app.get("io");
+    if (io) io.emit("products", await manager.getProducts());
+
+    res.status(201).json(product);
+  } catch (err) {
+    res.status(400).json({ error: err?.message || "Bad Request" });
+  }
 });
 
 router.put("/:pid", authRequired, async (req, res) => {
-  const product = await manager.updateProduct(req.params.pid, req.body);
-  if (!product) return res.status(404).json({ error: "Not found" });
-  res.json(product);
+  try {
+    const product = await manager.updateProduct(req.params.pid, req.body);
+    if (!product) return res.status(404).json({ error: "Not found" });
+
+    const io = req.app.get("io");
+    if (io) io.emit("products", await manager.getProducts());
+
+    res.json(product);
+  } catch (err) {
+    res.status(400).json({ error: err?.message || "Bad Request" });
+  }
 });
 
 router.delete("/:pid", authRequired, async (req, res) => {
   const ok = await manager.deleteProduct(req.params.pid);
   if (!ok) return res.status(404).json({ error: "Not found" });
+
+  const io = req.app.get("io");
+  if (io) io.emit("products", await manager.getProducts());
+
   res.json({ deleted: true });
 });
 

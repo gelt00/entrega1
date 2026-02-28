@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "1b5054f4-c0c1-40c5-b717-84f3fc555393",
-    "name": "API Products & Carts - Entrega 1",
-    "description": "Colección Postman para probar API de Productos y Carritos con JWT + Refresh. Incluye auto-guardado de tokens en variables de colección.",
+    "name": "API Products & Carts + Views - Entrega 2",
+    "description": "Colección Postman para probar API de Productos y Carritos con JWT + Refresh.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -254,6 +254,35 @@
               }
             ],
             "url": "{{baseUrl}}/api/carts/{{cartId}}/product/{{productId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Views",
+      "item": [
+        {
+          "name": "Home (/) - Handlebars",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/"
+          }
+        },
+        {
+          "name": "Home (/home) - Handlebars",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/home"
+          }
+        },
+        {
+          "name": "Real Time Products (/realtimeproducts)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/realtimeproducts"
           }
         }
       ]
