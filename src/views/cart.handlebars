@@ -1,0 +1,36 @@
+<section class="card">
+  {{#if notFound}}
+    <h2 class="title">Carrito no encontrado</h2>
+    <p class="muted">El carrito solicitado no existe.</p>
+  {{else}}
+    <div class="hero-row">
+      <div>
+        <h2 class="title">Carrito {{cart.id}}</h2>
+        <p class="muted">Productos asociados a este carrito.</p>
+      </div>
+      <a class="btn subtle" href="/products?cart={{cart.id}}">Seguir comprando</a>
+    </div>
+
+    {{#if cart.products.length}}
+      <ul class="grid">
+        {{#each cart.products}}
+          <li class="product">
+            <div class="row">
+              <strong>{{product.title}}</strong>
+              <span class="badge">Cantidad: {{quantity}}</span>
+            </div>
+            <div class="muted">{{product.description}}</div>
+            <div class="row gap">
+              <span>$ {{product.price}}</span>
+              <span class="chip">cat: {{product.category}}</span>
+              <span class="chip">stock: {{product.stock}}</span>
+              <span class="chip">id: {{product.id}}</span>
+            </div>
+          </li>
+        {{/each}}
+      </ul>
+    {{else}}
+      <div class="empty">Este carrito no tiene productos todavía.</div>
+    {{/if}}
+  {{/if}}
+</section>

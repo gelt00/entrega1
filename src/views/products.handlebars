@@ -1,0 +1,99 @@
+<section class="card">
+  <div class="hero-row">
+    <div>
+      <h2 class="title">Catalogo de productos</h2>
+      <p class="muted">Filtra por categoria o disponibilidad, ordena por precio y navega por paginas.</p>
+    </div>
+    <a class="btn subtle" href="/home">Vista simple</a>
+  </div>
+
+  <form class="filters-bar" method="GET" action="/products">
+    <label class="field">
+      <span>Busqueda</span>
+      <input name="query" value="{{filters.query}}" placeholder="Categoria o disponible/true/false" />
+    </label>
+
+    <label class="field">
+      <span>Orden</span>
+      <select name="sort">
+        <option value="">Sin orden</option>
+        <option value="asc" {{#if filters.sortAsc}}selected{{/if}}>Precio ascendente</option>
+        <option value="desc" {{#if filters.sortDesc}}selected{{/if}}>Precio descendente</option>
+      </select>
+    </label>
+
+    <label class="field">
+      <span>Limite</span>
+      <input name="limit" type="number" min="1" value="{{filters.limit}}" />
+    </label>
+
+    <label class="field">
+      <span>Cart ID</span>
+      <input name="cart" value="{{filters.cart}}" placeholder="Opcional para agregar al carrito" />
+    </label>
+
+    <button class="btn" type="submit">Aplicar</button>
+  </form>
+
+  <div class="pagination-summary">
+    <span class="chip">Pagina {{pagination.page}} de {{pagination.totalPages}}</span>
+    <span class="chip">Resultados: {{products.length}}</span>
+    {{#if filters.query}}<span class="chip">Filtro: {{filters.query}}</span>{{/if}}
+  </div>
+
+  {{#if products.length}}
+    <ul class="grid" id="catalogProductsList">
+      {{#each products}}
+        <li class="product">
+          <div class="row">
+            <strong>{{title}}</strong>
+            <span class="badge">ID: {{id}}</span>
+          </div>
+          <div class="muted">{{description}}</div>
+          <div class="row gap">
+            <span>$ {{price}}</span>
+            <span class="chip">code: {{code}}</span>
+            <span class="chip">stock: {{stock}}</span>
+            <span class="chip">cat: {{category}}</span>
+            <span class="chip">{{#if status}}Disponible{{else}}No disponible{{/if}}</span>
+          </div>
+          <div class="actions-row">
+            <a class="btn subtle" href="/products/{{id}}{{#if ../filters.cart}}?cart={{../filters.cart}}{{/if}}">Ver detalle</a>
+            <button
+              class="btn"
+              type="button"
+              data-add-to-cart
+              data-product-id="{{id}}"
+              data-cart-id="{{../filters.cart}}"
+            >
+              Agregar al carrito
+            </button>
+          </div>
+        </li>
+      {{/each}}
+    </ul>
+  {{else}}
+    <div class="empty">No se encontraron productos con esos filtros.</div>
+  {{/if}}
+
+  <div class="pager">
+    {{#if pagination.hasPrevPage}}
+      <a class="btn subtle" href="{{pagination.prevLinkView}}">Pagina anterior</a>
+    {{else}}
+      <span class="btn subtle disabled">Pagina anterior</span>
+    {{/if}}
+
+    {{#if pagination.hasNextPage}}
+      <a class="btn subtle" href="{{pagination.nextLinkView}}">Pagina siguiente</a>
+    {{else}}
+      <span class="btn subtle disabled">Pagina siguiente</span>
+    {{/if}}
+  </div>
+</section>
+
+<script>
+  window.__PRODUCTS_PAGE__ = {
+    cartId: "{{filters.cart}}"
+  };
+</script>
+<script src="/js/products.js"></script>

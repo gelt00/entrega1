@@ -1,0 +1,48 @@
+<section class="card">
+  {{#if notFound}}
+    <h2 class="title">Producto no encontrado</h2>
+    <p class="muted">El producto solicitado no existe o fue eliminado.</p>
+    <a class="btn subtle" href="/products">Volver al catalogo</a>
+  {{else}}
+    <div class="hero-row">
+      <div>
+        <h2 class="title">{{product.title}}</h2>
+        <p class="muted">Detalle completo del producto seleccionado.</p>
+      </div>
+      <a class="btn subtle" href="/products{{#if cartId}}?cart={{cartId}}{{/if}}">Volver al catalogo</a>
+    </div>
+
+    <div class="detail-card">
+      <div class="detail-main">
+        <p class="detail-text">{{product.description}}</p>
+        <div class="detail-grid">
+          <div class="chip">ID: {{product.id}}</div>
+          <div class="chip">Codigo: {{product.code}}</div>
+          <div class="chip">Precio: $ {{product.price}}</div>
+          <div class="chip">Stock: {{product.stock}}</div>
+          <div class="chip">Categoria: {{product.category}}</div>
+          <div class="chip">Estado: {{#if product.status}}Disponible{{else}}No disponible{{/if}}</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Agregar al carrito</h3>
+        <label class="field">
+          <span>Cart ID</span>
+          <input id="productDetailCartId" value="{{cartId}}" placeholder="Ingresa un cartId existente" />
+        </label>
+        <button
+          class="btn"
+          type="button"
+          data-add-to-cart
+          data-product-id="{{product.id}}"
+          data-cart-input="#productDetailCartId"
+        >
+          Agregar este producto
+        </button>
+      </div>
+    </div>
+  {{/if}}
+</section>
+
+<script src="/js/products.js"></script>

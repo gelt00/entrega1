@@ -11,9 +11,10 @@ import cartsRouter from "./routes/carts.js";
 import authRouter from "./routes/auth.js";
 import viewsRouter from "./routes/views.router.js";
 import ProductManager from "./managers/ProductManager.js";
+import { connectDB } from "./config/db.js";
 
 const app = express();
-const PORT = 8080;
+const PORT = process.env.PORT || 8080;
 
 // __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -25,10 +26,7 @@ const io = new SocketIOServer(httpServer);
 app.set("io", io);
 
 // ProductManager
-const productManager = new ProductManager(
-  path.resolve("src/data/products.json"),
-  path.resolve("src/data/carts.json")
-);
+const productManager = new ProductManager();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -80,12 +78,28 @@ io.on("connection", async (socket) => {
     }
   });
 
-  socket.on("product:toggle", async ({ id, status }) => {
-    await productManager.updateProduct(id, { status });
-    io.emit("products", await productManager.getProducts());
+  socket.on("product:toggle", async ({ id, status }, cb) => {
+    try {
+      const updated = await productManager.updateProduct(id, { status });
+      if (!updated) {
+        cb?.({ ok: false, error: "Not found" });
+        return;
+      }
+
+      io.emit("products", await productManager.getProducts());
+      cb?.({ ok: true, product: updated });
+    } catch (err) {
+      cb?.({ ok: false, error: err?.message || "Error updating product" });
+    }
   });
 });
 
-httpServer.listen(PORT, () => {
-  console.log(`Server listening on http://localhost:${PORT}`);
-});
+async function startServer() {
+  await connectDB();
+
+  httpServer.listen(PORT, () => {
+    console.log(`Server listening on http://localhost:${PORT}`);
+  });
+}
+
+startServer();

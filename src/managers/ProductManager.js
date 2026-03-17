@@ -1,5 +1,5 @@
-import { promises as fs } from "fs";
-import path from "path";
+import { Product } from "../models/Product.js";
+import { Cart } from "../models/Cart.js";
 
 function isNonEmptyString(v) {
   return typeof v === "string" && v.trim().length > 0;
@@ -61,73 +61,117 @@ function validateProductPayload(payload, { partial = false } = {}) {
   }
 }
 
+function parseBooleanQuery(value) {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  if (["true", "1", "available", "disponible"].includes(normalized)) return true;
+  if (["false", "0", "unavailable", "not_available", "agotado"].includes(normalized)) return false;
+  return null;
+}
+
+function buildProductFilter(query) {
+  if (!query || typeof query !== "string" || !query.trim()) return {};
+
+  const availability = parseBooleanQuery(query);
+  if (availability !== null) {
+    return { status: availability };
+  }
+
+  return {
+    category: { $regex: `^${query.trim()}$`, $options: "i" }
+  };
+}
+
+const formatProduct = (doc) => {
+  if (!doc) return null;
+  const obj = doc.toObject ? doc.toObject() : doc;
+  obj.id = obj._id.toString();
+  return obj;
+};
+
 export default class ProductManager {
-  constructor(filePath, cartsPath = null) {
-    this.filePath = filePath;
-    this.cartsPath = cartsPath;
-  }
-
-  async #ensureFile() {
-    try {
-      await fs.access(this.filePath);
-    } catch {
-      await fs.mkdir(path.dirname(this.filePath), { recursive: true });
-      await fs.writeFile(this.filePath, "[]", "utf-8");
-    }
-  }
-
   async getProducts() {
-    await this.#ensureFile();
+    const products = await Product.find().lean();
+    return products.map(p => {
+      p.id = p._id.toString();
+      return p;
+    });
+  }
 
-    const raw = await fs.readFile(this.filePath, "utf-8");
-    const trimmed = raw.trim();
+  async getProductsPaginated({
+    limit = 10,
+    page = 1,
+    sort,
+    query,
+    baseUrl
+  } = {}) {
+    const normalizedLimit = Number.isInteger(limit) ? limit : Number(limit);
+    const normalizedPage = Number.isInteger(page) ? page : Number(page);
+    const safeLimit = Number.isFinite(normalizedLimit) && normalizedLimit > 0 ? normalizedLimit : 10;
+    const safePage = Number.isFinite(normalizedPage) && normalizedPage > 0 ? normalizedPage : 1;
 
-    if (!trimmed) {
-      await fs.writeFile(this.filePath, "[]", "utf-8");
-      return [];
-    }
+    const filter = buildProductFilter(query);
+    const sortOption = sort === "asc" ? { price: 1 } : sort === "desc" ? { price: -1 } : undefined;
 
-    try {
-      const data = JSON.parse(trimmed);
-      if (!Array.isArray(data)) {
-        await fs.writeFile(this.filePath, "[]", "utf-8");
-        return [];
+    const totalDocs = await Product.countDocuments(filter);
+    const totalPages = Math.max(1, Math.ceil(totalDocs / safeLimit));
+    const currentPage = Math.min(safePage, totalPages);
+    const skip = (currentPage - 1) * safeLimit;
+
+    const docs = await Product.find(filter)
+      .sort(sortOption)
+      .skip(skip)
+      .limit(safeLimit)
+      .lean();
+
+    const payload = docs.map((doc) => formatProduct(doc));
+    const hasPrevPage = currentPage > 1;
+    const hasNextPage = currentPage < totalPages;
+    const prevPage = hasPrevPage ? currentPage - 1 : null;
+    const nextPage = hasNextPage ? currentPage + 1 : null;
+
+    const buildLink = (targetPage) => {
+      if (!targetPage || !baseUrl) return null;
+      const url = new URL(baseUrl);
+      url.searchParams.set("page", String(targetPage));
+      url.searchParams.set("limit", String(safeLimit));
+      if (query) url.searchParams.set("query", query);
+      if (sort === "asc" || sort === "desc") {
+        url.searchParams.set("sort", sort);
       }
-      return data.map((p) => ({ ...p, id: String(p?.id ?? "") }));
-    } catch {
-      await fs.writeFile(this.filePath, "[]", "utf-8");
-      return [];
-    }
-  }
+      return url.toString();
+    };
 
-  async #saveProducts(products) {
-    await this.#ensureFile();
-    await fs.writeFile(this.filePath, JSON.stringify(products, null, 2), "utf-8");
-  }
-
-  newId(products) {
-    const maxId = products.reduce((max, p) => {
-      const n = Number(p.id);
-      return Number.isFinite(n) ? Math.max(max, n) : max;
-    }, 0);
-    return String(maxId + 1);
+    return {
+      status: "success",
+      payload,
+      totalPages,
+      prevPage,
+      nextPage,
+      page: currentPage,
+      hasPrevPage,
+      hasNextPage,
+      prevLink: buildLink(prevPage),
+      nextLink: buildLink(nextPage)
+    };
   }
 
   async getProductById(id) {
-    const products = await this.getProducts();
-    return products.find((p) => String(p.id) === String(id)) || null;
+    if (!id.match(/^[0-9a-fA-F]{24}$/)) return null;
+    const product = await Product.findById(id).lean();
+    if (!product) return null;
+    product.id = product._id.toString();
+    return product;
   }
 
   async addProduct(payload) {
     validateProductPayload(payload, { partial: false });
 
-    const products = await this.getProducts();
     const code = String(payload.code).trim();
-    const codeExists = products.some((p) => String(p.code).trim() === code);
-    if (codeExists) throw new Error("code ya existe");
+    const existing = await Product.findOne({ code });
+    if (existing) throw new Error("code ya existe");
 
-    const product = {
-      id: this.newId(products),
+    const productData = {
       title: String(payload.title).trim(),
       description: String(payload.description).trim(),
       code,
@@ -138,61 +182,51 @@ export default class ProductManager {
       thumbnails: normalizeThumbnails(payload.thumbnails)
     };
 
-    products.push(product);
-    await this.#saveProducts(products);
-    return product;
+    const newProduct = await Product.create(productData);
+    return formatProduct(newProduct);
   }
 
   async updateProduct(id, payload) {
+    if (!id.match(/^[0-9a-fA-F]{24}$/)) return null;
     validateProductPayload(payload, { partial: true });
-
-    const products = await this.getProducts();
-    const index = products.findIndex((p) => String(p.id) === String(id));
-    if (index === -1) return null;
 
     if ("code" in payload) {
       const nextCode = String(payload.code).trim();
-      const conflict = products.some((p, i) => i !== index && String(p.code).trim() === nextCode);
+      const conflict = await Product.findOne({ code: nextCode, _id: { $ne: id } });
       if (conflict) throw new Error("code ya existe");
     }
 
-    const current = products[index];
-    const next = { ...current, ...payload, id: current.id };
+    const updates = { ...payload };
+    if ("title" in updates) updates.title = String(updates.title).trim();
+    if ("description" in updates) updates.description = String(updates.description).trim();
+    if ("code" in updates) updates.code = String(updates.code).trim();
+    if ("category" in updates) updates.category = String(updates.category).trim();
+    if ("price" in updates) updates.price = Number(updates.price);
+    if ("stock" in updates) updates.stock = Number(updates.stock);
+    if ("thumbnails" in updates) updates.thumbnails = normalizeThumbnails(updates.thumbnails);
 
-    if ("title" in next) next.title = String(next.title).trim();
-    if ("description" in next) next.description = String(next.description).trim();
-    if ("code" in next) next.code = String(next.code).trim();
-    if ("category" in next) next.category = String(next.category).trim();
-    if ("price" in next) next.price = Number(next.price);
-    if ("stock" in next) next.stock = Number(next.stock);
-    if ("thumbnails" in next) next.thumbnails = normalizeThumbnails(next.thumbnails);
+    const updated = await Product.findByIdAndUpdate(
+      id,
+      { $set: updates },
+      { new: true }
+    );
 
-    products[index] = next;
-    await this.#saveProducts(products);
-    return next;
+    return formatProduct(updated);
   }
 
   async deleteProduct(id) {
-    const products = await this.getProducts();
-    const filtered = products.filter((p) => String(p.id) !== String(id));
-    if (filtered.length === products.length) return false;
+    if (!id.match(/^[0-9a-fA-F]{24}$/)) return false;
 
-    await this.#saveProducts(filtered);
+    const deleted = await Product.findByIdAndDelete(id);
+    if (!deleted) return false;
 
-    if (this.cartsPath) {
-      try {
-        const cartsRaw = await fs.readFile(this.cartsPath, "utf-8");
-        const carts = JSON.parse(cartsRaw || "[]");
-        const updatedCarts = (Array.isArray(carts) ? carts : []).map((cart) => {
-          const nextProducts = (cart.products || []).filter(
-            (item) => String(item.product) !== String(id)
-          );
-          return { ...cart, products: nextProducts };
-        });
-        await fs.writeFile(this.cartsPath, JSON.stringify(updatedCarts, null, 2), "utf-8");
-      } catch (err) {
-        console.error("Error actualizando carritos:", err);
-      }
+    try {
+      await Cart.updateMany(
+        { "products.product": id },
+        { $pull: { products: { product: id } } }
+      );
+    } catch (err) {
+      console.error("Error actualizando carritos al borrar un producto:", err);
     }
 
     return true;

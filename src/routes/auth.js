@@ -1,8 +1,7 @@
 import { Router } from "express";
 import jwt from "jsonwebtoken";
 import "dotenv/config";
-import { promises as fs } from "fs";
-import path from "path";
+import { Token } from "../models/Token.js";
 
 const router = Router();
 
@@ -12,47 +11,6 @@ const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
 const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
 const ACCESS_EXPIRES = process.env.JWT_ACCESS_EXPIRES || "15m";
 const REFRESH_EXPIRES = process.env.JWT_REFRESH_EXPIRES || "1d";
-
-const TOKENS_PATH = path.resolve("src/data/auth_tokens.json");
-
-async function ensureTokensFile() {
-    try {
-        await fs.access(TOKENS_PATH);
-    } catch {
-        await fs.mkdir(path.dirname(TOKENS_PATH), { recursive: true });
-        await fs.writeFile(
-            TOKENS_PATH,
-            JSON.stringify({ accessToken: null, refreshToken: null, issuedAt: null }, null, 2),
-            "utf-8"
-        );
-    }
-}
-
-async function readTokensState() {
-    await ensureTokensFile();
-    const raw = await fs.readFile(TOKENS_PATH, "utf-8");
-    try {
-        const data = JSON.parse(raw);
-        return {
-            accessToken: data?.accessToken ?? null,
-            refreshToken: data?.refreshToken ?? null,
-            issuedAt: data?.issuedAt ?? null
-        };
-    } catch {
-        return { accessToken: null, refreshToken: null, issuedAt: null };
-    }
-}
-
-async function writeTokensState({ accessToken, refreshToken }) {
-    await ensureTokensFile();
-    const state = {
-        accessToken,
-        refreshToken,
-        issuedAt: new Date().toISOString()
-    };
-    await fs.writeFile(TOKENS_PATH, JSON.stringify(state, null, 2), "utf-8");
-    return state;
-}
 
 function signAccessToken(payload) {
     return jwt.sign(payload, ACCESS_SECRET, { expiresIn: ACCESS_EXPIRES });
@@ -79,7 +37,7 @@ router.post("/login", async (req, res) => {
         const accessToken = signAccessToken(payload);
         const refreshToken = signRefreshToken(payload);
 
-        await writeTokensState({ accessToken, refreshToken });
+        await Token.create({ refreshToken });
 
         return res.json({
             status: "success",
@@ -97,20 +55,20 @@ router.post("/refresh", async (req, res) => {
             return res.status(400).json({ status: "error", error: "refreshToken es requerido" });
         }
 
-        const saved = await readTokensState();
+        const savedToken = await Token.findOne({ refreshToken });
 
-        if (!saved.refreshToken || saved.refreshToken !== refreshToken) {
-            return res.status(401).json({ status: "error", error: "refreshToken inválido o revocado" });
+        if (!savedToken) {
+            return res.status(401).json({ status: "error", error: "refreshToken inválido o revocado (puede haber expirado por TTL)" });
         }
 
         const decoded = jwt.verify(refreshToken, REFRESH_SECRET);
-
         const payload = { username: decoded.username, role: decoded.role };
 
         const newAccessToken = signAccessToken(payload);
         const newRefreshToken = signRefreshToken(payload);
 
-        await writeTokensState({ accessToken: newAccessToken, refreshToken: newRefreshToken });
+        await Token.deleteOne({ refreshToken: savedToken.refreshToken });
+        await Token.create({ refreshToken: newRefreshToken });
 
         return res.json({
             status: "success",

@@ -1,14 +1,24 @@
 import { Router } from "express";
-import path from "path";
 import ProductManager from "../managers/ProductManager.js";
 import { authRequired } from "../middlewares/auth.js";
 
 const router = Router();
-const manager = new ProductManager(path.resolve("src/data/products.json"), path.resolve("src/data/carts.json"));
+const manager = new ProductManager();
 
 router.get("/", authRequired, async (req, res) => {
-  const products = await manager.getProducts();
-  res.json(products);
+  try {
+    const { limit, page, sort, query } = req.query;
+    const result = await manager.getProductsPaginated({
+      limit,
+      page,
+      sort,
+      query,
+      baseUrl: `${req.protocol}://${req.get("host")}${req.baseUrl}${req.path}`
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ status: "error", error: err?.message || "Bad Request" });
+  }
 });
 
 router.get("/:pid", authRequired, async (req, res) => {
